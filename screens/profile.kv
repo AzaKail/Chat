@@ -1,0 +1,9 @@
+<ProfileScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        MDTopAppBar:
+            title: "Профиль"
+            left_action_items: [["arrow-left", lambda x: app.switch_screen("chats_screen")]]
+        MDLabel:
+            text: "Добро пожаловать в профиль пользователя."
+            halign: "center"
