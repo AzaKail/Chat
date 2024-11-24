@@ -1,0 +1,46 @@
+# Настройки Supabase
+url = "https://olzyhnpnhadusvrryawv.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9senlobnBuaGFkdXN2cnJ5YXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA2NjAwNzAsImV4cCI6MjA0NjIzNjA3MH0.pXJHX1HXljvAV2X1Q2cHNNfC7b6M7mtu9XuH4Tga_bg"  # Замените на ваш ключ
+supabase: Client = create_client(url, key)
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9senlobnBuaGFkdXN2cnJ5YXd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzA2NjAwNzAsImV4cCI6MjA0NjIzNjA3MH0.pXJHX1HXljvAV2X1Q2cHNNfC7b6M7mtu9XuH4Tga_bg
+
+maksmatuv@gmail.com
+000000
+
+azamatmaksutov822@gmail.com
+111111
+
+Архитектура:
+1) Экран "Чат":
+
+Список чатов будет отображаться как в WhatsApp.
+Кнопка "+" для начала нового чата (по email другого пользователя).
+Каждый чат открывает экран для отправки и просмотра сообщений.
+
+2)Экран "Профиль":
+
+Отображает информацию о текущем пользователе, например, email, имя (в будущем можно добавить аватар или статус).
+
+3) Экран сообщений:
+
+Позволяет отправлять и получать сообщения.
+В Supabase будет храниться таблица сообщений, связанная с таблицей чатов.
+Структура базы данных Supabase:
+users:
+
+id (Primary Key)
+email (уникальный)
+name (опционально)
+chats:
+
+id (Primary Key)
+creator_id (ссылка на users.id)
+participant_id (ссылка на users.id)
+messages:
+
+id (Primary Key)
+chat_id (ссылка на chats.id)
+sender_id (ссылка на users.id)
+content (текст сообщения)
+created_at (время отправки)

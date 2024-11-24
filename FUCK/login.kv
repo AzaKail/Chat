@@ -1,0 +1,31 @@
+<LoginScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: dp(20)
+        spacing: dp(10)
+
+        MDTextField:
+            id: email
+            hint_text: "Email"
+            mode: "rectangle"
+
+        MDTextField:
+            id: password
+            hint_text: "Пароль"
+            password: True
+            mode: "rectangle"
+
+        MDRaisedButton:
+            text: "Войти"
+            on_release: root.login(email.text, password.text)
+
+        MDRaisedButton:
+            text: "Регистрация"
+            on_release: root.register(email.text, password.text)
+
+<ChatScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+
+        Label:
+            text: "Добро пожаловать в чат!"

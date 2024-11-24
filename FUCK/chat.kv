@@ -1,0 +1,26 @@
+<ChatScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+
+        MDToolbar:
+            title: "Чаты"
+            elevation: 10
+            left_action_items: [["account", lambda x: app.change_screen('profile_screen')]]
+
+        ScrollView:
+            MDList:
+                id: chat_list
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            spacing: dp(10)
+            padding: dp(10)
+
+            MDFloatingActionButton:
+                icon: "plus"
+                on_release: app.start_new_chat()
+
+            MDFloatingActionButton:
+                icon: "account-circle"
+                on_release: app.change_screen('profile_screen')
