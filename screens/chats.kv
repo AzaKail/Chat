@@ -4,6 +4,10 @@
         MDTopAppBar:
             title: "Чаты"
             left_action_items: [["menu", lambda x: root.open_menu(x)]]
-        MDLabel:
-            text: "Список чатов"
-            halign: "center"
+        ScrollView:
+            MDList:
+                id: chats_list
+        MDFloatingActionButton:
+            icon: "plus"
+            pos_hint: {"right": 0.95, "bottom": 0.05}
+            on_release: root.create_new_chat()
