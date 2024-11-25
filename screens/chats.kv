@@ -3,7 +3,7 @@
         orientation: "vertical"
         MDTopAppBar:
             title: "Чаты"
-            left_action_items: [["menu", lambda x: print("Menu tapped")]]
+            left_action_items: [["menu", lambda x: root.open_menu(x)]]
         MDLabel:
             text: "Список чатов"
             halign: "center"

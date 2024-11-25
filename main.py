@@ -5,14 +5,14 @@ from supabase import create_client, Client
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.button import MDFloatingActionButton
 from kivymd.uix.snackbar import Snackbar
-
-
+from kivymd.uix.menu import MDDropdownMenu
 
 
 # Подключаем файлы разметки
 Builder.load_file("screens/login.kv")
 Builder.load_file("screens/chats.kv")
 Builder.load_file("screens/profile.kv")
+
 
 # Конфигурация Supabase
 SUPABASE_URL = "https://olzyhnpnhadusvrryawv.supabase.co"
@@ -45,8 +45,36 @@ class LoginScreen(Screen):
             print(f"Ошибка регистрации: {str(e)}")
 
 
-class ChatsScreen(Screen):
-    pass
+class ChatsScreen(MDScreen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.menu = None
+
+    def open_menu(self, button):
+        if not self.menu:
+            menu_items = [
+                {
+                    "text": "Профиль",
+                    "viewclass": "OneLineListItem",
+                    "on_release": lambda: self.menu_callback("profile_screen"),
+                },
+                {
+                    "text": "Настройки",
+                    "viewclass": "OneLineListItem",
+                    "on_release": lambda: self.menu_callback("settings_screen"),
+                },
+            ]
+            self.menu = MDDropdownMenu(
+                caller=button,
+                items=menu_items,
+                width_mult=4,
+            )
+        self.menu.open()
+
+    def menu_callback(self, screen_name):
+        self.menu.dismiss()
+        self.manager.current = screen_name
+
 
 
 class ProfileScreen(Screen):
