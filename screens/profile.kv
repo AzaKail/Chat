@@ -1,9 +1,29 @@
 <ProfileScreen>:
     BoxLayout:
         orientation: "vertical"
+        spacing: dp(10)
+        padding: dp(20)
+
         MDTopAppBar:
             title: "Профиль"
             left_action_items: [["arrow-left", lambda x: app.switch_screen("chats_screen")]]
+
         MDLabel:
-            text: "Добро пожаловать в профиль пользователя."
+            id: email_label
+            text: "Email: Загрузка..."
+            font_style: "H6"
             halign: "center"
+
+        MDLabel:
+            id: created_at_label
+            text: "Дата создания: Загрузка..."
+            font_style: "Subtitle1"
+            halign: "center"
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            spacing: dp(10)
+            MDFillRoundFlatButton:
+                text: "Назад"
+                on_release: app.switch_screen("chats_screen")

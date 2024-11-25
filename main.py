@@ -77,8 +77,13 @@ class ChatsScreen(MDScreen):
 
 
 
-class ProfileScreen(Screen):
-    pass
+class ProfileScreen(MDScreen):
+    def on_pre_enter(self, *args):
+        """Загружаем данные пользователя перед входом на экран."""
+        user = MDApp.get_running_app().current_user
+        if user:
+            self.ids.email_label.text = f"Email: {user.email}"
+            self.ids.created_at_label.text = f"Дата создания: {user.created_at}"
 
 
 class ChatApp(MDApp):
