@@ -1,5 +1,5 @@
-<LoginScreen>:
-    name: "login_screen"
+<RegisterScreen>:
+    name: "register_screen"
 
     MDBoxLayout:
         orientation: "vertical"
@@ -7,7 +7,7 @@
         spacing: dp(20)
 
         MDLabel:
-            text: "Login"
+            text: "Register"
             halign: "center"
             font_style: "H4"
 
@@ -22,10 +22,15 @@
             mode: "rectangle"
             password: True
 
+        MDTextField:
+            id: nickname
+            hint_text: "Nickname"
+            mode: "rectangle"
+
         MDRaisedButton:
-            text: "Login"
+            text: "Register"
             pos_hint: {"center_x": 0.5}
-            on_release: root.login()
+            on_release: root.register()
 
         MDLabel:
             id: status_label
@@ -34,6 +39,6 @@
             theme_text_color: "Error"
 
         MDFlatButton:
-            text: "Don't have an account? Register"
+            text: "Already have an account? Login"
             pos_hint: {"center_x": 0.5}
-            on_release: app.root.current = "register_screen"
+            on_release: app.root.current = "login_screen"

@@ -1,190 +1,200 @@
-from kivy.app import App
-import kivy
-from kivy.uix.button import Button
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.label import Label
-from kivy.uix.gridlayout import GridLayout
-from kivy.core.window import Window
-from kivy.uix.screenmanager import ScreenManager
+from kivy.lang import Builder
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivymd.app import MDApp
+from supabase import create_client, Client
+from rabbitmq_chat import RabbitMQChat
 
-import sys
-import pickle
+
+
+# Supabase Configuration
+SUPABASE_URL = "https://fywpfnnjxfohwewjsrbo.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5d3Bmbm5qeGZvaHdld2pzcmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI5NTI1OTYsImV4cCI6MjA0ODUyODU5Nn0.17WMM-gDxg1ENNNfIq-vNDHNaKBryiXOj31SPSlopCs"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+
 import pika
-import datetime
-import time
-import threading
-import msvcrt
-
 import json
+import threading
+import time
 from datetime import datetime
+from kivy.uix.screenmanager import Screen
+
+class ChatScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.connection = None
+        self.channel = None
+        self.queue_name = None
+        self.nick = None  # Никнейм будет загружаться из Supabase
+
+    def connect_to_chat(self):
+        """Подключается к RabbitMQ и создает очередь."""
+        chat_name = self.ids.chat_name.text.strip()  # Пользователь вводит адрес чата
+        if not chat_name:
+            self.ids.status_label.text = "Ошибка: Укажите адрес чата"
+            return
+
+        # Подключаемся к RabbitMQ
+        try:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+            self.channel = self.connection.channel()
+            self.channel.queue_declare(queue=chat_name, arguments={
+                'x-message-ttl': 86400000  # Время жизни сообщения (24 часа)
+            })
+            self.queue_name = chat_name
+            self.ids.status_label.text = f"Подключено к чату '{chat_name}'"
+
+            # Запускаем поток для получения сообщений
+            consuming_thread = threading.Thread(target=self.consume_messages, daemon=True)
+            consuming_thread.start()
+
+        except Exception as e:
+            self.ids.status_label.text = f"Ошибка подключения: {str(e)}"
+
+    def send_message(self):
+        """Отправляет сообщение в чат."""
+        if not self.queue_name:
+            self.ids.status_label.text = "Ошибка: Сначала подключитесь к чату"
+            return
+
+        message_text = self.ids.message_input.text.strip()
+        if not message_text:
+            self.ids.status_label.text = "Ошибка: Сообщение не может быть пустым"
+            return
+
+        # Формируем сообщение
+        message = {
+            'datetime': time.time(),
+            'nick': self.nick,  # Никнейм из базы данных
+            'msg': message_text
+        }
+
+        try:
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.queue_name,
+                body=json.dumps(message),
+                properties=pika.BasicProperties(delivery_mode=2)  # Устойчивое сообщение
+            )
+            self.ids.message_input.text = ""  # Очищаем поле ввода
+
+        except Exception as e:
+            self.ids.status_label.text = f"Ошибка отправки сообщения: {str(e)}"
+
+    def consume_messages(self):
+        """Получает сообщения из очереди."""
+        def callback(ch, method, properties, body):
+            data = json.loads(body.decode('utf-8'))
+
+            # Форматируем сообщение
+            timestamp = datetime.utcfromtimestamp(data['datetime']).strftime('%Y-%m-%d %H:%M:%S')
+            sender = data['nick']
+            message = data['msg']
+
+            # Обновляем текст чата
+            self.ids.chat_logs.text += f"[{timestamp}] {sender}: {message}\n"
+
+        # Потребляем сообщения
+        self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback, auto_ack=True)
+        self.channel.start_consuming()
+
+
+
+class LoginScreen(Screen):
+    def login(self):
+        email = self.ids.email.text.strip()
+        password = self.ids.password.text.strip()
+
+        if not email or not password:
+            self.ids.status_label.text = "Ошибка: Все поля обязательны для заполнения"
+            return
+
+        try:
+            response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if response.user:
+                user_id = response.user.id
+                # Получаем данные пользователя из представления extended_users
+                user_data = supabase.table("extended_users").select("*").eq("id", user_id).single().execute()
+                MDApp.get_running_app().current_user = user_data.data
+                self.ids.status_label.text = "Успешный вход"
+                self.manager.current = "home_screen"
+            else:
+                self.ids.status_label.text = "Ошибка: Неверный логин или пароль"
+        except Exception as e:
+            print(f"Error during login: {e}")
+            self.ids.status_label.text = f"Ошибка: {str(e)}"
+
+
+
+class RegisterScreen(Screen):
+    def register(self):
+        email = self.ids.email.text.strip()
+        password = self.ids.password.text.strip()
+        nickname = self.ids.nickname.text.strip()
+
+        if not email or not password or not nickname:
+            self.ids.status_label.text = "Ошибка: Все поля обязательны для заполнения"
+            return
+
+        try:
+            # Регистрация пользователя в Supabase
+            response = supabase.auth.sign_up({"email": email, "password": password})
+            if response.user:
+                user_id = response.user.id
+                # Добавляем nickname в таблицу user_profiles
+                supabase.table("user_profiles").insert({
+                    "id": user_id,
+                    "nickname": nickname
+                }).execute()
+                self.ids.status_label.text = "Перейдите по почте для подтверждения регистрации"
+                self.manager.current = "login_screen"
+            else:
+                self.ids.status_label.text = "Ошибка: Регистрация не удалась"
+        except Exception as e:
+            print(f"Error during registration: {e}")
+            self.ids.status_label.text = f"Ошибка: {str(e)}"
+
+
+
+
+
+class HomeScreen(Screen):
+    pass
+
+
+class ProfileScreen(Screen):
+    def on_pre_enter(self):
+        user = MDApp.get_running_app().current_user
+        self.ids.email_label.text = f"Email: {user['email']}"
+        self.ids.nickname_label.text = f"Nickname: {user['nickname']}"
+
 
 class RootWidget(ScreenManager):
-    def __init__(self, **kwargs):
-        super(RootWidget, self).__init__(**kwargs)
+    pass
 
 
-######################
-# KIVY APP:
+class ChatApp(MDApp):
+    current_user = None
 
-class ChatApp(App):
     def build(self):
-        self.host = "127.0.0.1"
-        self.nick = "kivy"
-        return RootWidget()
-    
-    def connect(self):
-        self.host = self.root.ids.server.text
-        self.nick = self.root.ids.nickname.text
+        Builder.load_file("screens/login.kv")
+        Builder.load_file("screens/register.kv")
+        Builder.load_file("screens/home.kv")
+        Builder.load_file("screens/profile.kv")
+        Builder.load_file("screens/chats.kv")
 
-        self.channel = self.open_channel(self.nick)
-        self.root.current = 'chatroom'
+        sm = RootWidget()
+        sm.add_widget(LoginScreen(name="login_screen"))
+        sm.add_widget(RegisterScreen(name="register_screen"))
+        sm.add_widget(HomeScreen(name="home_screen"))
+        sm.add_widget(ProfileScreen(name="profile_screen"))
+        sm.add_widget(ChatScreen(name="chat_screen"))
 
-        conuming_thread = threading.Thread(target=self.consuming, name='consuming')
-        conuming_thread.start()
+        return sm
 
-        time.sleep(0.5)      # ?Без паузы возникает ошибка pop from an empty deque. нужна проверка потока consuming
-        self.send_msg('@зашел_в_чат')
-
-    def send_msg(self):
-        pass
-
-    def open_channel(self, nickname):
-        connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost',
-                                  credentials=pika.PlainCredentials('guest', 'guest')))
-        channel = connection.channel()
-
-        channel.queue_declare(queue=nickname)
-
-        # Public chat:
-        channel.queue_bind(exchange='amq.fanout',
-                           queue=nickname)
-
-        # Private chat:
-        channel.queue_bind(exchange='amq.direct',
-                           routing_key=self.nick + "_private",
-                           queue=nickname)
-        
-        # Service chat:
-        channel.queue_bind(exchange='amq.direct',
-                           routing_key='service',
-                           queue=nickname)
-
-        # Private service chat:
-        channel.queue_bind(exchange='amq.direct',
-                           routing_key=self.nick + '_private_service',
-                           queue=nickname)
-
-        return channel
-
-    def consuming(self):
-            self.channel.basic_qos(prefetch_count=100)
-            self.channel.basic_consume(queue=self.nick, on_message_callback=self.recieve_msg)
-            self.channel.start_consuming()
-
-    def esc_markup(self, msg):
-        return (msg.replace('&', '&amp;')
-                   .replace('[', '&bl;')
-                   .replace(']', '&br;'))
-
-
-    def recieve_msg(self, ch, method, properties, body):
-
-        data = json.loads(body.decode('utf-8'))
-
-        msg = data['msg']
-
-        color = '2980b9'
-
-        msg_datetime = data['datetime']
-        sender_nick = data['nick']
-        first_word = msg.split(" ")[0].replace("@","")
-
-        msg_age = time.time() - msg_datetime
-        if msg_age > 86400:    
-            ch.basic_ack(delivery_tag = method.delivery_tag)    # Если сообщению больше суток, то удалить из очереди
-        else:
-            is_service_msg = False
-        
-            if method.routing_key == 'service':
-                color = 'ff0000'
-                is_service_msg = True
-            elif method.routing_key.find('_private_service') != -1:
-                color = 'faaa00'
-                is_service_msg = True
-            elif method.routing_key.find('_private') != -1:
-                color = 'ff00ff'
-
-            self.root.ids.chat_logs.text += (
-                    '{} {}[b][color={}] {}[/color][/b]\n'.format(self.esc_markup(datetime.utcfromtimestamp(msg_datetime).strftime('[%Y.%m.%d_%H:%M:%S]')),
-                                                                 sender_nick,
-                                                                 color, 
-                                                                 self.esc_markup(msg))
-            )
-            self.root.ids.view.scroll_y = 0
-
-            if first_word == "who_are_here?":
-                self.send_msg("@i_am_here! @" + sender_nick)
-
-            if is_service_msg:
-                ch.basic_ack(delivery_tag = method.delivery_tag)    # Удалить сообщение из очереди если оно сервисное
-
-    # Returns word and true if msg == service command
-    def parse_command(self, word):
-
-        word = word.replace("@", "")
-
-        #if nick != self.nick:
-        if word == "who_are_here?":
-            #self.send_msg("@i_am_here!")
-            return True
-
-
-    def send_msg(self, text):
-        #text = self.root.ids.message.text
-
-        words = text.split(" ")
-        exchange = 'amq.fanout'
-        routing_key = ''
-
-        # Проверка на сервисное сообщение
-        if "@" in words[0]:
-            exchange = 'amq.direct'
-
-            if words[0] == "@who_are_here?" or \
-               words[0] == "@i_am_here!" or \
-               words[0] == '@зашел_в_чат':
-
-                routing_key = 'service'
-                if len(words) > 1:
-                    if "@" in words[1]:     # Если сервис адресован кому-то:
-                        routing_key = words[1].replace('@','') + '_private_service'
-            else:
-                routing_key = words[0].replace("@", "") + "_private"   # routing_key = nickname address
-
-        message = {'datetime': time.time(), 'nick':self.nick, 'msg':text}
-
-        message = json.dumps(message)
-            
-        self.channel.basic_publish(exchange=exchange,
-	                          routing_key=routing_key,
-	                          body=message,
-	                          properties=pika.BasicProperties(
-	                          delivery_mode=2,  # make message persistent
-	                          ))
-
-        # Плохой код, поменять routing:
-        if routing_key.find("_private") != -1 and \
-             routing_key.find("_private_service") == -1:
-            self.channel.basic_publish(exchange=exchange,
-                                       routing_key=self.nick + "_private",
-	                                   body=message,
-	                                   properties=pika.BasicProperties(
-	                                   delivery_mode=2,  # make message persistent
-	                                   ))
 
 
 if __name__ == "__main__":
-    ChatApp().run();
+    ChatApp().run()
