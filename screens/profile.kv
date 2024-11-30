@@ -1,0 +1,27 @@
+<ProfileScreen>:
+    name: "profile_screen"
+
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+
+        MDLabel:
+            text: "Profile"
+            halign: "center"
+            font_style: "H4"
+
+        MDLabel:
+            id: email_label
+            text: "Email: "
+            halign: "center"
+
+        MDLabel:
+            id: nickname_label
+            text: "Nickname: "
+            halign: "center"
+
+        MDRaisedButton:
+            text: "Back"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "home_screen"

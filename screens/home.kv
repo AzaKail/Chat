@@ -1,0 +1,17 @@
+<HomeScreen>:
+    name: "home_screen"
+
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+
+        MDRaisedButton:
+            text: "Начать чат"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "chat_screen"
+
+        MDRaisedButton:
+            text: "Профиль"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "profile_screen"

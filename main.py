@@ -4,6 +4,14 @@ from kivymd.app import MDApp
 from supabase import create_client, Client
 from rabbitmq_chat import RabbitMQChat
 
+import pika
+import json
+import threading
+import time
+from datetime import datetime
+
+import sqlite3
+
 
 
 # Supabase Configuration
@@ -13,13 +21,46 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
+# Функция для сохранения сообщения в базу данных
+def save_message_to_db(chat_name, message):
+    """Сохраняет сообщение в базу данных SQLite."""
+    conn = sqlite3.connect('chat_messages.db')  # Подключение к базе данных
+    cursor = conn.cursor()
 
-import pika
-import json
-import threading
-import time
-from datetime import datetime
-from kivy.uix.screenmanager import Screen
+    # Создаём таблицу, если она не существует
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            chat_name TEXT,
+            datetime REAL,
+            nick TEXT,
+            msg TEXT
+        )
+    ''')
+
+    # Вставляем сообщение в таблицу
+    cursor.execute('''
+        INSERT INTO messages (chat_name, datetime, nick, msg)
+        VALUES (?, ?, ?, ?)
+    ''', (chat_name, message['datetime'], message['nick'], message['msg']))
+
+    conn.commit()  # Сохраняем изменения
+    conn.close()   # Закрываем подключение
+
+
+# Функция для загрузки сообщений из базы данных
+def load_messages_from_db(chat_name):
+    conn = sqlite3.connect('chat_messages.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT datetime, nick, msg FROM messages
+        WHERE chat_name = ?
+        ORDER BY datetime ASC
+    ''', (chat_name,))
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
 
 class ChatScreen(Screen):
     def __init__(self, **kwargs):
@@ -30,23 +71,36 @@ class ChatScreen(Screen):
         self.nick = None  # Никнейм будет загружаться из Supabase
 
     def connect_to_chat(self):
-        """Подключается к RabbitMQ и создает очередь."""
-        chat_name = self.ids.chat_name.text.strip()  # Пользователь вводит адрес чата
+        """Подключается к RabbitMQ и загружает старые сообщения."""
+        chat_name = self.ids.chat_name.text.strip()
         if not chat_name:
             self.ids.status_label.text = "Ошибка: Укажите адрес чата"
             return
 
-        # Подключаемся к RabbitMQ
         try:
+            # Подключение к RabbitMQ
             self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
             self.channel = self.connection.channel()
-            self.channel.queue_declare(queue=chat_name, arguments={
-                'x-message-ttl': 86400000  # Время жизни сообщения (24 часа)
-            })
-            self.queue_name = chat_name
+
+            # Создаём Fanout Exchange
+            self.channel.exchange_declare(exchange=chat_name, exchange_type='fanout')
+
+            # Создаем временную очередь для клиента
+            result = self.channel.queue_declare(queue='', exclusive=True)  # Временная очередь
+            self.queue_name = result.method.queue
+
+            # Привязываем очередь к exchange
+            self.channel.queue_bind(exchange=chat_name, queue=self.queue_name)
+
+            # Загружаем старые сообщения из базы данных
+            messages = load_messages_from_db(chat_name)
+            for timestamp, sender, msg in messages:
+                formatted_time = datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+                self.ids.chat_logs.text += f"[{formatted_time}] {sender}: {msg}\n"
+
             self.ids.status_label.text = f"Подключено к чату '{chat_name}'"
 
-            # Запускаем поток для получения сообщений
+            # Запускаем поток для получения новых сообщений
             consuming_thread = threading.Thread(target=self.consume_messages, daemon=True)
             consuming_thread.start()
 
@@ -54,7 +108,7 @@ class ChatScreen(Screen):
             self.ids.status_label.text = f"Ошибка подключения: {str(e)}"
 
     def send_message(self):
-        """Отправляет сообщение в чат."""
+        """Отправляет сообщение через Fanout Exchange и сохраняет в базу данных."""
         if not self.queue_name:
             self.ids.status_label.text = "Ошибка: Сначала подключитесь к чату"
             return
@@ -72,12 +126,17 @@ class ChatScreen(Screen):
         }
 
         try:
+            # Отправляем сообщение в exchange
             self.channel.basic_publish(
-                exchange='',
-                routing_key=self.queue_name,
+                exchange=self.ids.chat_name.text.strip(),
+                routing_key='',
                 body=json.dumps(message),
                 properties=pika.BasicProperties(delivery_mode=2)  # Устойчивое сообщение
             )
+
+            # Сохраняем сообщение в базу данных
+            save_message_to_db(self.ids.chat_name.text.strip(), message)
+
             self.ids.message_input.text = ""  # Очищаем поле ввода
 
         except Exception as e:
@@ -85,6 +144,7 @@ class ChatScreen(Screen):
 
     def consume_messages(self):
         """Получает сообщения из очереди."""
+
         def callback(ch, method, properties, body):
             data = json.loads(body.decode('utf-8'))
 
@@ -96,10 +156,13 @@ class ChatScreen(Screen):
             # Обновляем текст чата
             self.ids.chat_logs.text += f"[{timestamp}] {sender}: {message}\n"
 
-        # Потребляем сообщения
-        self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback, auto_ack=True)
-        self.channel.start_consuming()
+        try:
+            # Потребляем сообщения из временной очереди
+            self.channel.basic_consume(queue=self.queue_name, on_message_callback=callback, auto_ack=True)
+            self.channel.start_consuming()
 
+        except Exception as e:
+            self.ids.status_label.text = f"Ошибка при получении сообщений: {str(e)}"
 
 
 class LoginScreen(Screen):
