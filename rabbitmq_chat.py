@@ -5,47 +5,36 @@ import time
 
 
 class RabbitMQChat:
-    def __init__(self, host="localhost", username="guest", password="guest"):
-        self.connection_params = pika.ConnectionParameters(
-            host=host,
-            credentials=pika.PlainCredentials(username, password)
-        )
-        self.connection = pika.BlockingConnection(self.connection_params)
-        self.channel = self.connection.channel()
+    def __init__(self, amqp_url):
+        try:
+            self.connection_params = pika.URLParameters(amqp_url)
+            self.connection = pika.BlockingConnection(self.connection_params)
+            self.channel = self.connection.channel()
+        except Exception as e:
+            print(f"Ошибка подключения к RabbitMQ: {e}")
+            self.connection = None
+            self.channel = None
 
     def create_queue(self, queue_name):
-        """Создает очередь для чата."""
+        """Создаёт устойчивую очередь."""
         self.channel.queue_declare(
             queue=queue_name,
-            arguments={
-                'x-message-ttl': 86400000  # 24 часа в миллисекундах
-            }
+            durable=True,  # Устойчивая очередь
+            arguments={'x-message-ttl': 86400000}  # Время жизни сообщений: 24 часа
         )
-        return queue_name
 
     def send_message(self, queue_name, sender, message):
-        """Отправляет сообщение в указанный чат."""
-        msg_payload = json.dumps({
+        if self.channel is None:
+            raise Exception("Ошибка: Нет соединения с RabbitMQ.")
+        message_data = {
             "sender": sender,
             "message": message,
             "timestamp": time.time()
-        })
-
+        }
         self.channel.basic_publish(
             exchange='',
             routing_key=queue_name,
-            body=msg_payload,
-            properties=pika.BasicProperties(
-                delivery_mode=2  # Указывает, что сообщение устойчиво
-            )
+            body=json.dumps(message_data),
+            properties=pika.BasicProperties(delivery_mode=2)
         )
 
-    def start_consuming(self, queue_name, callback):
-        """Начинает потребление сообщений из очереди."""
-        def on_message(channel, method, properties, body):
-            msg = json.loads(body)
-            callback(msg)
-            channel.basic_ack(delivery_tag=method.delivery_tag)
-
-        self.channel.basic_consume(queue=queue_name, on_message_callback=on_message)
-        threading.Thread(target=self.channel.start_consuming, daemon=True).start()
