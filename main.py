@@ -67,6 +67,9 @@ def initialize_database():
 initialize_database()
 
 
+
+
+
 # Функция для загрузки сообщений из базы данных
 def load_messages_from_db(chat_name):
     conn = sqlite3.connect("chat_messages.db")
@@ -257,7 +260,14 @@ class ChatApp(MDApp):
 
         return sm
 
+    def change_screen(self, screen_name):
+        """Смена экрана."""
+        self.root.current = screen_name
 
+    def logout(self):
+        """Выход из аккаунта и переход на экран авторизации."""
+        self.root.current = "login_screen"  # Возвращаемся на экран авторизации
+        self.current_user = None  # Очищаем данные текущего пользователя
 
 if __name__ == "__main__":
     ChatApp().run()
