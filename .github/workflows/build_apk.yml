@@ -18,8 +18,13 @@ jobs:
       with:
         image: kivy/buildozer:latest
         options: --privileged
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CLOUDAMQP_URL: ${{ secrets.CLOUDAMQP_URL }}
         run: |
           buildozer -v android debug
+
     - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
