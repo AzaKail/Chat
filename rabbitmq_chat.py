@@ -15,26 +15,50 @@ class RabbitMQChat:
             self.connection = None
             self.channel = None
 
+    def get_messages(self, queue_name):
+        """Получает все сообщения из указанной очереди."""
+        messages = []
+        try:
+            while True:
+                method_frame, properties, body = self.channel.basic_get(queue=queue_name, auto_ack=False)
+                if not method_frame:
+                    break
+                data = json.loads(body.decode("utf-8"))
+                messages.append(data)
+
+                # Сообщение подтверждается вручную
+                self.channel.basic_ack(method_frame.delivery_tag)
+        except Exception as e:
+            print(f"Ошибка получения сообщений: {e}")
+        return messages
+
     def create_queue(self, queue_name):
         """Создаёт устойчивую очередь."""
         self.channel.queue_declare(
             queue=queue_name,
-            durable=True,  # Устойчивая очередь
-            arguments={'x-message-ttl': 86400000}  # Время жизни сообщений: 24 часа
+            durable=True,
+            arguments={
+                'x-message-ttl': 86400000  # TTL 24 часа (миллисекунды)
+            }
         )
 
     def send_message(self, queue_name, sender, message):
-        if self.channel is None:
-            raise Exception("Ошибка: Нет соединения с RabbitMQ.")
-        message_data = {
+        """Отправляет сообщение в очередь."""
+        if not self.channel:
+            raise Exception("Канал не установлен")
+
+        data = json.dumps({
             "sender": sender,
             "message": message,
-            "timestamp": time.time()
-        }
+            "timestamp": time.time(),
+        })
+
         self.channel.basic_publish(
             exchange='',
             routing_key=queue_name,
-            body=json.dumps(message_data),
-            properties=pika.BasicProperties(delivery_mode=2)
+            body=data,
+            properties=pika.BasicProperties(
+                delivery_mode=2  # Устойчивое сообщение
+            )
         )
 

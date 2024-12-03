@@ -88,142 +88,153 @@ def load_messages_from_db(chat_name):
 class ChatScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.connection = None
-        self.channel = None
         self.queue_name = None
-        self.nick = None  # Никнейм будет загружаться из Supabase
+        self.channel = rabbitmq_chat.channel  # Канал RabbitMQ
 
-    # Обновлённый метод подключения
     def connect_to_chat(self):
-        """Подключается к чату и загружает старые сообщения из базы данных."""
+        """Подключается к чату и загружает старые сообщения."""
         chat_name = self.ids.chat_name.text.strip()
         if not chat_name:
             self.ids.status_label.text = "Ошибка: Укажите адрес чата"
             return
 
         try:
-            # Подключение через RabbitMQ
             rabbitmq_chat.create_queue(chat_name)
             self.queue_name = chat_name
 
-            # Загружаем старые сообщения из базы данных
-            messages = load_messages_from_db(chat_name)
-            for sender, message, timestamp in messages:
-                formatted_time = datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-                self.ids.chat_logs.text += f"[{formatted_time}] {sender}: {message}\n"
+            # Загружаем старые сообщения
+            self.load_previous_messages()
 
             # Запускаем поток для получения новых сообщений
-            consuming_thread = threading.Thread(target=self.consume_messages, daemon=True)
-            consuming_thread.start()
+            threading.Thread(target=self.consume_messages, daemon=True).start()
 
             self.ids.status_label.text = f"Подключено к чату '{chat_name}'"
         except Exception as e:
             self.ids.status_label.text = f"Ошибка подключения: {str(e)}"
 
-    # Обновлённый метод отправки сообщения
     def send_message(self):
-        """Отправляет сообщение и сохраняет его в базу данных."""
+        """Отправляет сообщение в очередь."""
         if not self.queue_name:
-            self.ids.status_label.text = "Ошибка: Сначала подключитесь к чату"
+            self.ids.status_label.text = "Ошибка: Подключитесь к чату"
             return
 
-        message_text = self.ids.message_input.text.strip()
-        if not message_text:
+        message = self.ids.message_input.text.strip()
+        if not message:
             self.ids.status_label.text = "Ошибка: Сообщение не может быть пустым"
             return
 
-        message = {
-            'sender': self.nick,  # Никнейм пользователя
-            'message': message_text,
-            'timestamp': time.time()
-        }
-
+        sender = MDApp.get_running_app().current_user.get("nickname", "Anonymous")
         try:
-            # Сохраняем сообщение в базу данных
-            save_message_to_db(self.queue_name, message['sender'], message['message'])
-
-            # Отправляем сообщение через RabbitMQ
-            rabbitmq_chat.send_message(self.queue_name, message['sender'], message['message'])
-            self.ids.message_input.text = ""  # Очищаем текстовое поле
+            rabbitmq_chat.send_message(self.queue_name, sender, message)
+            self.ids.message_input.text = ""  # Очищаем поле ввода
         except Exception as e:
             self.ids.status_label.text = f"Ошибка отправки сообщения: {str(e)}"
 
     def consume_messages(self):
-        """Получает сообщения из очереди."""
+        """Получает сообщения из очереди и отображает их."""
 
         def callback(ch, method, properties, body):
-            data = json.loads(body.decode('utf-8'))
-            timestamp = datetime.utcfromtimestamp(data['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-            sender = data['sender']
-            message = data['message']
+            data = json.loads(body.decode("utf-8"))
+            timestamp = datetime.utcfromtimestamp(data["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            sender = data["sender"]
+            message = data["message"]
+
+            # Сохраняем сообщение в базу данных
+            save_message_to_db(self.queue_name, sender, message)
+
+            # Обновляем интерфейс
             self.ids.chat_logs.text += f"[{timestamp}] {sender}: {message}\n"
 
         try:
-            rabbitmq_chat.channel.basic_consume(
-                queue=self.queue_name, on_message_callback=callback, auto_ack=True
+            self.channel.basic_consume(
+                queue=self.queue_name, on_message_callback=callback, auto_ack=False
             )
-            rabbitmq_chat.channel.start_consuming()
-
+            self.channel.start_consuming()
         except Exception as e:
             self.ids.status_label.text = f"Ошибка получения сообщений: {str(e)}"
+
+    def load_previous_messages(self):
+        """Загружает старые сообщения из базы и очереди."""
+        if not self.queue_name:
+            return
+
+        # Загружаем сообщения из базы данных
+        db_messages = load_messages_from_db(self.queue_name)
+        for sender, text, timestamp in db_messages:
+            timestamp_str = datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            self.ids.chat_logs.text += f"[{timestamp_str}] {sender}: {text}\n"
+
+        # Загружаем сообщения из RabbitMQ
+        queue_messages = rabbitmq_chat.get_messages(self.queue_name)
+        for message in queue_messages:
+            timestamp = datetime.utcfromtimestamp(message["timestamp"]).strftime('%Y-%m-%d %H:%M:%S')
+            sender = message["sender"]
+            text = message["message"]
+            self.ids.chat_logs.text += f"[{timestamp}] {sender}: {text}\n"
 
 
 class LoginScreen(Screen):
     def login(self):
-        email = self.ids.email.text.strip()
-        password = self.ids.password.text.strip()
+        """Авторизация пользователя."""
+        app = MDApp.get_running_app()
+        login_screen = app.root.get_screen('login_screen')
+        email = login_screen.ids.email_input.text.strip()
+        password = login_screen.ids.password_input.text.strip()
 
         if not email or not password:
-            self.ids.status_label.text = "Ошибка: Все поля обязательны для заполнения"
+            login_screen.ids.status_label.text = "Ошибка: Заполните все поля"
             return
 
         try:
-            response = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            if response.user:
-                user_id = response.user.id
-                # Получаем данные пользователя из представления extended_users
-                user_data = supabase.table("extended_users").select("*").eq("id", user_id).single().execute()
-                MDApp.get_running_app().current_user = user_data.data
-                self.ids.status_label.text = "Успешный вход"
-                self.manager.current = "home_screen"
-            else:
-                self.ids.status_label.text = "Ошибка: Неверный логин или пароль"
-        except Exception as e:
-            print(f"Error during login: {e}")
-            self.ids.status_label.text = f"Ошибка: {str(e)}"
+            # Используем словарь для передачи данных авторизации
+            response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
+            user_id = response.user.id
 
+            # Получаем никнейм пользователя
+            result = supabase.table("user_profiles").select("nickname").eq("id", user_id).execute()
+            nickname = result.data[0]['nickname'] if result.data else None
+
+            if not nickname:
+                login_screen.ids.status_label.text = "Ошибка: Никнейм не найден"
+                return
+
+            # Сохраняем текущего пользователя
+            app.current_user = {'id': user_id, 'email': email, 'nickname': nickname}
+            app.change_screen("home_screen")
+        except Exception as e:
+            login_screen.ids.status_label.text = f"Ошибка входа: {str(e)}"
 
 
 class RegisterScreen(Screen):
     def register(self):
-        email = self.ids.email.text.strip()
-        password = self.ids.password.text.strip()
-        nickname = self.ids.nickname.text.strip()
+        """Регистрация пользователя."""
+        app = MDApp.get_running_app()
+        register_screen = app.root.get_screen('register_screen')
+        email = register_screen.ids.email_input.text.strip()
+        password = register_screen.ids.password_input.text.strip()
+        nickname = register_screen.ids.nickname_input.text.strip()
 
         if not email or not password or not nickname:
-            self.ids.status_label.text = "Ошибка: Все поля обязательны для заполнения"
+            register_screen.ids.status_label.text = "Ошибка: Заполните все поля"
             return
 
         try:
-            # Регистрация пользователя в Supabase
-            response = supabase.auth.sign_up({"email": email, "password": password})
-            if response.user:
-                user_id = response.user.id
-                # Добавляем nickname в таблицу user_profiles
-                supabase.table("user_profiles").insert({
-                    "id": user_id,
-                    "nickname": nickname
-                }).execute()
-                self.ids.status_label.text = "Перейдите по почте для подтверждения регистрации"
-                self.manager.current = "login_screen"
-            else:
-                self.ids.status_label.text = "Ошибка: Регистрация не удалась"
+            # Регистрация пользователя через Supabase
+            response = supabase.auth.sign_up(email=email, password=password)
+
+            # Сохраняем nickname в таблицу user_profiles
+            supabase.table("user_profiles").insert({
+                "id": response.user.id,
+                "nickname": nickname
+            }).execute()
+
+            app.change_screen("login_screen")
+            register_screen.ids.status_label.text = "Регистрация успешна! Проверьте почту для подтверждения."
         except Exception as e:
-            print(f"Error during registration: {e}")
-            self.ids.status_label.text = f"Ошибка: {str(e)}"
-
-
-
+            register_screen.ids.status_label.text = f"Ошибка регистрации: {str(e)}"
 
 
 class HomeScreen(Screen):
@@ -268,6 +279,9 @@ class ChatApp(MDApp):
         """Выход из аккаунта и переход на экран авторизации."""
         self.root.current = "login_screen"  # Возвращаемся на экран авторизации
         self.current_user = None  # Очищаем данные текущего пользователя
+
+
+
 
 if __name__ == "__main__":
     ChatApp().run()
