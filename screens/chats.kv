@@ -1,0 +1,45 @@
+<ChatScreen>:
+    name: "chat_screen"
+
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+
+        MDTextField:
+            id: chat_name
+            hint_text: "Введите адрес чата"
+            mode: "rectangle"
+
+        MDRaisedButton:
+            text: "Подключиться к чату"
+            pos_hint: {"center_x": 0.5}
+            on_release: root.connect_to_chat()
+
+        ScrollView:
+            MDLabel:
+                id: chat_logs
+                text: ""
+                size_hint_y: None
+                halign: "left"
+
+        MDTextField:
+            id: message_input
+            hint_text: "Введите сообщение"
+            mode: "rectangle"
+
+        MDRaisedButton:
+            text: "Отправить"
+            pos_hint: {"center_x": 0.5}
+            on_release: root.send_message()
+
+        MDLabel:
+            id: status_label
+            text: ""
+            halign: "center"
+            theme_text_color: "Error"
+
+        MDRaisedButton:
+            text: "Назад"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.change_screen("home_screen")

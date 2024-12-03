@@ -1,0 +1,24 @@
+<HomeScreen>:
+    name: "home_screen"
+
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+
+        MDRaisedButton:
+            text: "Начать чат"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "chat_screen"
+
+        MDRaisedButton:
+            text: "Профиль"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "profile_screen"
+
+        MDFloatingActionButton:
+            icon: "logout"
+            md_bg_color: app.theme_cls.primary_color
+            pos_hint: {"center_x": 0.5, "center_y": 0.1}
+            on_release: app.logout()
+

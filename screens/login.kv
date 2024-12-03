@@ -1,0 +1,42 @@
+<LoginScreen>:
+    name: "login_screen"
+
+    MDBoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+
+        MDLabel:
+            text: "Login"
+            halign: "center"
+            font_style: "H4"
+
+        MDTextField:
+            id: email_input
+            hint_text: "Email"
+            mode: "rectangle"
+
+        MDTextField:
+            id: password_input
+            hint_text: "Password"
+            mode: "rectangle"
+            password: True
+
+        MDRaisedButton:
+            text: "Войти"
+            pos_hint: {"center_x": 0.5}
+            on_release: root.login()
+
+
+
+
+        MDLabel:
+            id: status_label
+            text: ""  # Пустой текст для отображения статуса
+            halign: "center"
+            theme_text_color: "Error"
+
+        MDFlatButton:
+            text: "Don't have an account? Register"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.root.current = "register_screen"
