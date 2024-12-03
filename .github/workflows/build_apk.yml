@@ -24,8 +24,8 @@ jobs:
           echo "Setting up temporary Buildozer directory..."
           export BUILDOZER_HOME=/home/user/.buildozer
           mkdir -p $BUILDOZER_HOME
-          echo "Forcing Buildozer to use BUILDOZER_HOME..."
-          sed -i 's|/app/.buildozer|'"$BUILDOZER_HOME"'|g' buildozer.spec
+          echo "Cleaning buildozer.spec to avoid /app paths..."
+          sed -i 's|/app/.buildozer|'"$BUILDOZER_HOME"'|g' buildozer.spec || true
           echo "Starting Buildozer..."
           buildozer -v android debug
 
