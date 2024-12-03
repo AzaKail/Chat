@@ -24,10 +24,8 @@ jobs:
           echo "Setting up temporary Buildozer directory..."
           export BUILDOZER_HOME=/home/user/.buildozer
           mkdir -p $BUILDOZER_HOME
-          echo "Cleaning buildozer.spec to avoid /app paths..."
-          sed -i 's|/app/.buildozer|'"$BUILDOZER_HOME"'|g' buildozer.spec || true
-          echo "Starting Buildozer..."
-          buildozer -v android debug
+          echo "Starting Buildozer with custom BUILDOZER_HOME..."
+          BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILDOZER_HOME" buildozer -v android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v3
