@@ -19,10 +19,11 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app
         run: |
-          echo "Setting correct permissions..."
-          chmod -R 777 /app
           echo "Changing to /app..."
           cd /app
+          echo "Setting up temporary Buildozer directory..."
+          export BUILDOZER_HOME=/home/user/.buildozer
+          mkdir -p $BUILDOZER_HOME
           echo "Starting Buildozer..."
           buildozer -v android debug
 
