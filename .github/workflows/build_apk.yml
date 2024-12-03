@@ -17,13 +17,15 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         image: kivy/buildozer:latest
-        options: --privileged --user 1000:1000 -v ${{ github.workspace }}:/app
+        options: --privileged -v ${{ github.workspace }}:/app
         run: |
           echo "Changing to /app..."
           cd /app
           echo "Setting up temporary Buildozer directory..."
           export BUILDOZER_HOME=/home/user/.buildozer
           mkdir -p $BUILDOZER_HOME
+          echo "Forcing Buildozer to use BUILDOZER_HOME..."
+          sed -i 's|/app/.buildozer|'"$BUILDOZER_HOME"'|g' buildozer.spec
           echo "Starting Buildozer..."
           buildozer -v android debug
 
