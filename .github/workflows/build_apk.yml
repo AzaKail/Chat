@@ -13,18 +13,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Debug and Build APK using Docker
+    - name: Build APK using Docker
       uses: addnab/docker-run-action@v3
       with:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app
         run: |
-          echo "Checking mounted directory..."
-          ls -la /app
+          echo "Setting correct permissions..."
+          chmod -R 777 /app
           echo "Changing to /app..."
-          cd /app || exit 1
-          echo "Verifying files..."
-          ls -la
+          cd /app
           echo "Starting Buildozer..."
           buildozer -v android debug
 
