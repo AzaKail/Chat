@@ -13,28 +13,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Install dependencies
-      run: |
-        apt update
-        apt install -y python3-pip python3-venv build-essential git zip unzip openjdk-11-jdk
-        pip install buildozer cython
-
-    - name: Setup Android SDK
-      run: |
-        wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O cmdline-tools.zip
-        unzip cmdline-tools.zip -d $HOME/android-sdk
-        mkdir -p $HOME/android-sdk/cmdline-tools/latest
-        mv $HOME/android-sdk/cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest
-        yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android-sdk "build-tools;31.0.0" "platform-tools" "platforms;android-31"
-      env:
-        ANDROID_SDK_ROOT: $HOME/android-sdk
-
-    - name: Build APK
-      run: |
-        buildozer -v android debug
-      env:
-        ANDROID_SDK_ROOT: $HOME/android-sdk
-
+    - name: Build APK using Docker
+      uses: addnab/docker-run-action@v3
+      with:
+        image: kivy/buildozer:latest
+        options: --privileged
+        run: |
+          buildozer -v android debug
     - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
