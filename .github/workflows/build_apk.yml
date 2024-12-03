@@ -18,6 +18,13 @@ jobs:
       with:
         image: kivy/buildozer:latest
         options: --privileged
+        workdir: /github/workspace
         run: |
-          cd /github/workspace
+          ls -la  # Проверим, виден ли buildozer.spec
           buildozer -v android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug.apk
+        path: bin/*.apk
