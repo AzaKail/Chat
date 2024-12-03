@@ -19,8 +19,14 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged
         run: |
-          cd /github/workspace
-          ls -la  # Убедимся, что buildozer.spec доступен
+          echo "Checking current directory..."
+          pwd
+          echo "Listing files..."
+          ls -la
+          echo "Changing directory to /github/workspace..."
+          cd /github/workspace || exit 1
+          echo "Checking files again..."
+          ls -la
           buildozer -v android debug
 
     - name: Upload APK
