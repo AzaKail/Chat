@@ -19,17 +19,5 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged
         run: |
-          export SUPABASE_URL=${SUPABASE_URL}
-          export SUPABASE_KEY=${SUPABASE_KEY}
-          export CLOUDAMQP_URL=${CLOUDAMQP_URL}
+          cd /github/workspace
           buildozer -v android debug
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        CLOUDAMQP_URL: ${{ secrets.CLOUDAMQP_URL }}
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: app-debug.apk
-        path: bin/*.apk
