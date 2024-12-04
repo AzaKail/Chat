@@ -39,5 +39,5 @@ osx.kivy_version = 2.1.0
 # exclude_patterns = license,images/*.png,images/original/*
 
 # Точки входа для компиляции
-p4a.branch = release
+p4a.branch = develop
 p4a.bootstrap = sdl2
