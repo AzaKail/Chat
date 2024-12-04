@@ -21,15 +21,17 @@ jobs:
         run: |
           echo "Changing to /app..."
           cd /app
-          echo "Creating a writable directory..."
+          echo "Setting up writable directories..."
           export BUILDOZER_HOME=/tmp/.buildozer_home
+          export BUILD_DIR=/tmp/build
           mkdir -p $BUILDOZER_HOME
-          chmod -R 777 $BUILDOZER_HOME
+          mkdir -p $BUILD_DIR
+          chmod -R 777 $BUILDOZER_HOME $BUILD_DIR
           echo "Starting Buildozer..."
-          BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILDOZER_HOME" buildozer -v android debug
+          BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILD_DIR" buildozer -v android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
         name: app-debug.apk
-        path: /app/bin/*.apk
+        path: /tmp/build/android/platform/build/*.apk
