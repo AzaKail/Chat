@@ -19,16 +19,14 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app:z -v /tmp:/tmp
         run: |
-          echo "Changing to /app..."
-          cd /app
+          echo "Changing to temporary working directory..."
+          mkdir -p /tmp/app
+          cp -r /app/* /tmp/app/
+          cd /tmp/app
           echo "Setting up writable directories..."
           export BUILDOZER_HOME=/tmp/.buildozer_home
-          export ANDROID_NDK_HOME=/tmp/android-ndk
           mkdir -p $BUILDOZER_HOME
-          mkdir -p $ANDROID_NDK_HOME
-          chmod -R 777 $BUILDOZER_HOME $ANDROID_NDK_HOME
-          echo "Increasing HTTP timeout..."
-          export BUILDOZER_HTTP_TIMEOUT=300
+          chmod -R 777 $BUILDOZER_HOME
           echo "Starting Buildozer..."
           buildozer -v android debug
 
@@ -36,4 +34,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: app-debug.apk
-        path: /app/bin/*.apk
+        path: /tmp/app/bin/*.apk
