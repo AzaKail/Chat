@@ -19,19 +19,19 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app:z
         run: |
-          echo "Changing to /app..."
-          cd /app
+          echo "Changing working directory to /tmp..."
+          mkdir -p /tmp/app
+          cp -r /app/* /tmp/app/
+          cd /tmp/app
           echo "Setting up writable directories..."
           export BUILDOZER_HOME=/tmp/.buildozer_home
-          export BUILD_DIR=/tmp/build
           mkdir -p $BUILDOZER_HOME
-          mkdir -p $BUILD_DIR
-          chmod -R 777 $BUILDOZER_HOME $BUILD_DIR
+          chmod -R 777 $BUILDOZER_HOME
           echo "Starting Buildozer..."
-          BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILD_DIR" buildozer -v android debug
+          buildozer -v android debug
 
     - name: Upload APK
       uses: actions/upload-artifact@v3
       with:
         name: app-debug.apk
-        path: /tmp/build/android/platform/build/*.apk
+        path: /tmp/app/bin/*.apk
