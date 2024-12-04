@@ -21,11 +21,11 @@ jobs:
         run: |
           echo "Changing to /app..."
           cd /app
-          echo "Setting up temporary Buildozer directory..."
-          export BUILDOZER_HOME=/app/.buildozer_home
+          echo "Creating a writable directory..."
+          export BUILDOZER_HOME=/tmp/.buildozer_home
           mkdir -p $BUILDOZER_HOME
           chmod -R 777 $BUILDOZER_HOME
-          echo "Starting Buildozer with custom BUILDOZER_HOME..."
+          echo "Starting Buildozer..."
           BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILDOZER_HOME" buildozer -v android debug
 
     - name: Upload APK
