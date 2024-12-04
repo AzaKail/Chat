@@ -24,6 +24,7 @@ jobs:
           echo "Setting up temporary Buildozer directory..."
           export BUILDOZER_HOME=/app/.buildozer_home
           mkdir -p $BUILDOZER_HOME
+          chmod -R 777 $BUILDOZER_HOME
           echo "Starting Buildozer with custom BUILDOZER_HOME..."
           BUILDOZER_GLOBAL_OPTIONS="--build-dir=$BUILDOZER_HOME" buildozer -v android debug
 
@@ -31,4 +32,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: app-debug.apk
-        path: bin/*.apk
+        path: /app/bin/*.apk
