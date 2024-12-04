@@ -3,7 +3,7 @@ name: Build APK
 on:
   push:
     branches:
-      - master
+      - master # Или другая ветка, например main
 
 jobs:
   build:
@@ -13,21 +13,34 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pip openjdk-11-jdk
+        pip install buildozer cython
+
+    - name: Check Buildozer spec
+      run: |
+        if [ ! -f buildozer.spec ]; then
+          echo "Error: buildozer.spec not found!"
+          exit 1
+        fi
+
     - name: Build APK using Docker
       uses: addnab/docker-run-action@v3
       with:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app:z -v /tmp:/tmp
         run: |
-          echo "Changing to temporary working directory..."
+          # Копируем проект в временную папку
           mkdir -p /tmp/app
           cp -r /app/* /tmp/app/
           cd /tmp/app
-          echo "Setting up writable directories..."
+          # Создаем Buildozer окружение
           export BUILDOZER_HOME=/tmp/.buildozer_home
           mkdir -p $BUILDOZER_HOME
           chmod -R 777 $BUILDOZER_HOME
-          echo "Starting Buildozer..."
+          # Стартуем Buildozer
           buildozer -v android debug
 
     - name: Upload APK
