@@ -17,8 +17,9 @@ jobs:
       run: |
         echo "Downloading Android NDK..."
         wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
-        unzip -q ndk.zip -d android-ndk
-        echo "Android NDK downloaded and extracted."
+        unzip -q ndk.zip -d ndk
+        mv ndk/android-ndk-r21e ~/.buildozer/android/platform/android-ndk-r21e
+        echo "Android NDK downloaded and installed."
 
     - name: Build APK using Docker
       uses: addnab/docker-run-action@v3
@@ -26,10 +27,9 @@ jobs:
         image: kivy/buildozer:latest
         options: --privileged -v ${{ github.workspace }}:/app:z -v /tmp:/tmp
         run: |
-          # Копируем проект в временную директорию
+          # Копируем проект в рабочую директорию
           mkdir -p /tmp/app
           cp -r /app/* /tmp/app/
-          cp -r /app/android-ndk/android-ndk-r21e /tmp/.buildozer/android/platform/
           cd /tmp/app
           
           # Устанавливаем окружение Buildozer
