@@ -16,7 +16,7 @@ jobs:
     - name: Pre-download Android NDK
       run: |
         echo "Downloading Android NDK..."
-        wget https://dl.google.com/android/repository/android-ndk-r25b-linux-x86_64.zip -O ndk.zip
+        wget https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip -O ndk.zip
         unzip -q ndk.zip -d android-ndk
         echo "Android NDK downloaded and extracted."
 
@@ -29,7 +29,7 @@ jobs:
           # Копируем проект в временную директорию
           mkdir -p /tmp/app
           cp -r /app/* /tmp/app/
-          cp -r /app/android-ndk/android-ndk-r25b /tmp/.buildozer/android/platform/
+          cp -r /app/android-ndk/android-ndk-r21e /tmp/.buildozer/android/platform/
           cd /tmp/app
           
           # Устанавливаем окружение Buildozer
