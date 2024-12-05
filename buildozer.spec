@@ -1,43 +1,22 @@
 [app]
-# Имя вашего приложения
+# Общие параметры
 title = ChatApp
-
-# Пакетное имя
 package.name = chatapp
 package.domain = org.example
-
-# Главный файл (точка входа)
 source.main = main.py
-
-# Исходная директория
 source.dir = .
-
-# Значок приложения (укажите путь к иконке, если есть)
-# icon.filename = icon.png
-
-# Поддерживаемые форматы APK
-android.archs = armeabi-v7a, arm64-v8a
-
-# Текущая версия приложения
 version = 1.0
 
-# Список используемых библиотек
+# Зависимости
 requirements = python3,kivy,kivymd,supabase-py,pika
 
-# Минимальная версия Android (API 19 = Android 4.4)
+# Android
+android.api = 30
 android.minapi = 19
-
-# Разрешения Android
+android.ndk = 25b
+android.sdk = 23
 android.permissions = INTERNET
+android.gradle_dependencies = com.android.support:support-v4:27.1.1
 
-# Язык и раскладка
-osx.python_version = 3
-osx.kivy_version = 2.1.0
-
-# Buildozer автоматически включает все файлы в исходной директории
-# Если нужно что-то исключить:
-# exclude_patterns = license,images/*.png,images/original/*
-
-# Точки входа для компиляции
+# Buildozer
 p4a.branch = develop
-p4a.bootstrap = sdl2
