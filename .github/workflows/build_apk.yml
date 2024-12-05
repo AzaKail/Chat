@@ -20,7 +20,7 @@ jobs:
         unzip -q ndk.zip -d ndk
         mkdir -p ~/.buildozer/android/platform/
         mv ndk/android-ndk-r21e ~/.buildozer/android/platform/android-ndk-r21e
-        echo "Android NDK downloaded and installed."
+        echo "Android NDK installed successfully."
 
     - name: Build APK using Docker
       uses: addnab/docker-run-action@v3
@@ -38,6 +38,10 @@ jobs:
           mkdir -p $BUILDOZER_HOME
           chmod -R 777 $BUILDOZER_HOME
           
+          # Принудительная установка пути к NDK
+          echo "Setting custom NDK path..."
+          sed -i 's/android-ndk-r25b/android-ndk-r21e/' ~/.buildozer/android/platform/android-ndk-r21e/source.properties
+
           # Сборка APK
           echo "Starting Buildozer..."
           buildozer -v android debug
