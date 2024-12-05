@@ -38,9 +38,12 @@ jobs:
           mkdir -p $BUILDOZER_HOME
           chmod -R 777 $BUILDOZER_HOME
           
-          # Принудительная установка пути к NDK
+          # Принудительное использование NDK r21e
           echo "Setting custom NDK path..."
           sed -i 's/android-ndk-r25b/android-ndk-r21e/' ~/.buildozer/android/platform/android-ndk-r21e/source.properties
+
+          # Отключение загрузки NDK через Buildozer
+          sed -i 's/self._install_android_ndk/#self._install_android_ndk/' /home/user/.local/lib/python3.8/site-packages/buildozer/targets/android.py
 
           # Сборка APK
           echo "Starting Buildozer..."
