@@ -61,4 +61,3 @@ class RabbitMQChat:
                 delivery_mode=2  # Устойчивое сообщение
             )
         )
-

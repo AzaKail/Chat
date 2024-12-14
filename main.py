@@ -3,14 +3,32 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivymd.app import MDApp
 from supabase import create_client, Client
 from rabbitmq_chat import RabbitMQChat
+from kivymd.uix.boxlayout import MDBoxLayout
 
 import pika
 import json
 import threading
 import time
 from datetime import datetime
-
+import logging
 import sqlite3
+
+
+import os
+import sys
+
+def get_resource_path(relative_path):
+    """Определяет путь к ресурсам в режиме .exe или скрипта."""
+    if getattr(sys, 'frozen', False):
+        # Если приложение запущено как .exe
+        base_path = sys._MEIPASS
+    else:
+        # Если приложение запускается как обычный скрипт
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+# Пример: загрузка .kv файлов из папки screens
+kv_file_path = get_resource_path("screens/some_file.kv")
 
 
 
@@ -251,16 +269,18 @@ class ProfileScreen(Screen):
 class RootWidget(ScreenManager):
     pass
 
+# Настройка логирования в файл (для отладки без консоли)
+logging.basicConfig(filename="app.log", level=logging.INFO, format="%(asctime)s - %(message)s")
 
 class ChatApp(MDApp):
     current_user = None
 
     def build(self):
-        Builder.load_file("screens/login.kv")
-        Builder.load_file("screens/register.kv")
-        Builder.load_file("screens/home.kv")
-        Builder.load_file("screens/profile.kv")
-        Builder.load_file("screens/chats.kv")
+        Builder.load_file(get_resource_path("screens/login.kv"))
+        Builder.load_file(get_resource_path("screens/register.kv"))
+        Builder.load_file(get_resource_path("screens/home.kv"))
+        Builder.load_file(get_resource_path("screens/profile.kv"))
+        Builder.load_file(get_resource_path("screens/chats.kv"))
 
         sm = RootWidget()
         sm.add_widget(LoginScreen(name="login_screen"))
@@ -277,8 +297,27 @@ class ChatApp(MDApp):
 
     def logout(self):
         """Выход из аккаунта и переход на экран авторизации."""
-        self.root.current = "login_screen"  # Возвращаемся на экран авторизации
-        self.current_user = None  # Очищаем данные текущего пользователя
+        self.root.current = "login_screen"
+        self.current_user = None
+
+    def on_stop(self):
+        """Вызывается при закрытии приложения."""
+        logging.info("Закрытие приложения...")
+        # Закрываем соединение с RabbitMQ
+        try:
+            rabbitmq_chat.channel.close()
+            rabbitmq_chat.connection.close()
+            logging.info("RabbitMQ соединение закрыто.")
+        except Exception as e:
+            logging.error(f"Ошибка при закрытии RabbitMQ: {e}")
+
+        # Закрываем базу данных
+        try:
+            conn = sqlite3.connect("chat_messages.db")
+            conn.close()
+            logging.info("Соединение с базой данных закрыто.")
+        except Exception as e:
+            logging.error(f"Ошибка при закрытии базы данных: {e}")
 
 
 
